@@ -12,14 +12,19 @@ class ApiClient {
         let url = this.baseUrl + `/${id}`;  // Get record id
 
         try {
-
             await fetch(url, {         // Request delete
                 method: 'DELETE',
-            });
+            })
+            .then(response => {                                                                     // response returned from fetch
+                if (!response.ok) {                                                                 // HTTP request failed
+                    this.queryResults.value = 'HTTP DELETE request error: Status = ' + response.status.toString(); // log failure to Result output                                                  // Check for request error
+                    throw new Error('HTTP request failed: Status = ' + response.status.toString()); // Throw error POST,PUT or PATCH request failed
+                }
+                })
             this.queryResults.value = 'Deleted record number ' +  `${id}`;   // Send delete message to text area
           // Catch error, send to console, and throw
         } catch (error) {
-            console.error('DELETE Error:', error);
+            console.error('DELETE', error);
             throw error;
         }
     }
@@ -32,20 +37,26 @@ class ApiClient {
                 url += `/${id}`;       // Add id for specific record, if id was passed
             
             try {
-
                 await fetch(url)      // Request Get and return response
+                        .then(response => {                                                                     // response returned from fetch
+                            if (!response.ok) {                                                                 // HTTP request failed
+                                this.queryResults.value = 'HTTP GET request error: Status = ' + response.status.toString(); // log failure to Result output                                                  // Check for request error
+                                throw new Error('HTTP request failed: Status = ' + response.status.toString()); // Throw error stating that POST,PUT or PATCH request failed
+                            }
+                            return response;
+                            })
                         .then((response) => response.json())   // Format response into json file and return file
                         .then((json) => this.queryResults.value = JSON.stringify(json, null, 2))  // Stringify json file and return
           
             // Catch error, send to console, then throw error  
             } catch (error) {
-                console.error('GET Error:', error);
+                console.error('GET', error);
                 throw error;
             }
     }
 
     // Post, Put and Patch requests, asynchronous method
-    // jsonFields: all fields with date for current method
+    // jsonFields: all fields with data for current method
     // thisMethod: current method for this request (post, put or patch)
     // ID: id of the record for put or patch request
     async postPutPatch(jsonFields, thisMethod, id) {
@@ -61,12 +72,19 @@ class ApiClient {
                             'Content-type': 'application/json; charset=UTF-8',   // Request header
                         },
                         })
+                        .then(response => {                                                                     // response returned from fetch
+                            if (!response.ok) {                                                                 // HTTP request failed
+                                this.queryResults.value = 'HTTP ' + thisMethod + ' request error: Status = ' + response.status.toString(); // log failure to Result output                                                   // Check for request error
+                                throw new Error('HTTP request failed: Status = ' + response.status.toString()); // Throw error stating that POST,PUT or PATCH request failed
+                            }
+                            return response;
+                            })
                         .then((response) => response.json())    // Format response into json file and return file
-                        .then((json) => this.queryResults.value = JSON.stringify(json, null, 2));    // Stringify json file and return
+                        .then((json) => this.queryResults.value = JSON.stringify(json, null, 2))    // Stringify json file and return
             
             // Catch error, send to console, then throw error
             } catch (error) {
-            console.error('GET Error:', error);
+            console.error(thisMethod, error);
             throw error;
             }
 
@@ -137,7 +155,7 @@ function getRequestType() {
     // Goes to request case based on the selectRadio value, which contains the current request
     switch (selectedRadio.value) {
         case "GET":
-            if (document.querySelector('.IDinput').value >= 0)                     // Process Get request of ID value is non-negative
+            if (document.querySelector('.IDinput').value === '' || document.querySelector('.IDinput').value >= 1) // Process Get request of ID value is blank or non-negative
                 getRequest();
             else {
                 queryResults.value = 'Error: Enter a valid id and retry request';  // ID value is negative, which is invalid
@@ -149,7 +167,7 @@ function getRequestType() {
             break;
 
         case "PUT":
-            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 0)
+            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 1)
                 postPutPatchRequest("Put");    // Process Put request
             else {
                 queryResults.value = 'Error: Enter a valid id and retry request';
@@ -159,7 +177,7 @@ function getRequestType() {
 
         case "PATCH":
             //postPutPatchRequest("Patch");
-            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 0)
+            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 1)
                 postPutPatchRequest("Patch");   // Process Patch request
             else {
                 queryResults.value = 'Error: Enter a valid id and retry request';
@@ -168,7 +186,7 @@ function getRequestType() {
 
         case "DELETE":
             
-            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 0)
+            if (document.querySelector('.IDinput').value != '' && document.querySelector('.IDinput').value >= 1)
                 deleteRequest();    // Process Delete request
             else {
                 queryResults.value = 'Error: Enter a valid id and retry request';
@@ -201,6 +219,8 @@ function getRequest() {
 
     const requestID = document.querySelector('.IDinput');  // Get ID for Get request
 
+    // if id has been entered in client, call get with id value, 
+    // otherwise, call get with blank string indicating no id: return all records
     requestID.value ? apiClient.get(requestID.value) : apiClient.get("");   // Call apiClient Get request
 
     requestID.value = "";                                 // Reset ID after delete request
@@ -211,7 +231,7 @@ function getRequest() {
 // which has a value of Post, Put or Patch
 function postPutPatchRequest(method) {
 
-    let jsonFields = {   // Create empty object to hold field values for current request
+    let jsonFields = {   // Create empty object to hold record field values for current request
         address: {
             geo: {},
         },
@@ -241,8 +261,9 @@ function postPutPatchRequest(method) {
             // Get the corresponding label for the input field. The label name is used to add the field name to the jsonField object
             const currentLabel = document.querySelector(`label[id='${input.id}']`).textContent;
 
-            if (input.value)                            // add a field to the jsonFields object if there is date in that field
+            if (input.value) {                            // add a field to the jsonFields object if there is date in that field
                 currentJsonField[currentLabel] = input.value;
+            }
 
         }
 
